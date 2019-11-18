@@ -12,7 +12,16 @@ const Client = new line.Client({channelAccessToken : '8YPInaLsR0Ihyte/TVBrOg7NPm
 
 const lineApiTest = functions.https.onRequest((req,res) =>{
 
-    Client.replyMessage("U2d493044794b863dee491bfc35596921",{type :"text", text : "eiei"})
+    Client.pushMessage("U2d493044794b863dee491bfc35596921",{type :"text", text : "eiei"})
+    .then( () =>{
+        console.log("Kwai")
+    }
+
+    )
+    .catch( err => {
+        console.error(err)
+    })
+    
 
     console.log("EIEIEIEIEIEEI")
 
