@@ -5,7 +5,19 @@ import {app as lineApp} from './line'
 
 
 
-exports.lineApiGateWay = functions.https.onRequest(lineApp)
+const lineApiGateWay = functions.https.onRequest(lineApp)
 
 
-exports.lottoApi = functions.https.onRequest(lottoApp)
+const lottoApi = functions.https.onRequest(lottoApp)
+
+const fullfillment = functions.https.onRequest((req,res) => {
+
+    res.status(200).end()
+})
+
+
+export {
+    lottoApi,
+    lineApiGateWay,
+    fullfillment
+}

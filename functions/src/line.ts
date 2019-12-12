@@ -39,12 +39,13 @@ app.post('*', (req : express.Request,res : express.Response) =>{
             .then((stream : Readable) =>{
                 let data : string = ""
                 stream.on("data",(chunk)=>{
-                    console.log(chunk)
+                    // console.log(chunk)
                     data += chunk
                 })
 
                 stream.on("end",()=>{
                     console.log(data)
+                    res.send(200).end()
                 })
 
                 
@@ -72,7 +73,7 @@ app.post('*', (req : express.Request,res : express.Response) =>{
 
       }
 
-      res.status(404).end()
+    //   res.status(404).end()
 
 
     })
