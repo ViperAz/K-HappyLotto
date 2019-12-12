@@ -44,8 +44,25 @@ app.post('*', (req : express.Request,res : express.Response) =>{
                 })
 
                 stream.on("end",()=>{
-                    console.log(data)
-                    res.send(200).end()
+                    // console.log(data)
+
+                    requestPromise.post({
+                        uri: "https://us-central1-k-happy-lotto.cloudfunctions.net/scanLotto",
+                        headers : {
+                            
+                        },
+                        body: data
+                        
+                    })
+                    .then( (result : express.Response) =>{
+                        console.log(result.statusCode)
+                        res.status(200).end()
+                    })
+                    .catch( err => {
+                        console.error(err)
+                        res.status(400).end()
+                    })
+                    
                 })
 
                 
