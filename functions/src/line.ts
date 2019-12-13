@@ -4,6 +4,7 @@ import * as requestPromise from "request-promise"
 import { Readable } from 'stream';
 import cors = require('cors');
 
+
 const Client = new line.Client({channelAccessToken : '8YPInaLsR0Ihyte/TVBrOg7NPmBE8VTghj4ctBqZ4D7ovuBcFAjYpIRhbbWisppI2juj7MJSAiAkJaIDs+0QvwXFTwkHkjFbrxgPaoFgVK4NY9t5tD3zwvnkbcCk62DmWDwT68EOoyiEIVV9RL31DQdB04t89/1O/w1cDnyilFU='})
 
 const app = express()
@@ -37,30 +38,32 @@ app.post('*', (req : express.Request,res : express.Response) =>{
 
             getImageContent(event.message.id)
             .then((stream : Readable) =>{
-                let data : string = ""
-                stream.on("data",(chunk)=>{
+                let data: Buffer[] = []
+                stream.on("data",(chunk : Buffer)=>{
                     // console.log(chunk)
-                    data += chunk
+                    data.push(chunk)
                 })
 
                 stream.on("end",()=>{
                     // console.log(data)
-
+                    console.log(data)
                     requestPromise.post({
                         uri: "https://us-central1-k-happy-lotto.cloudfunctions.net/scanLotto",
-                        headers : {
-                            
+                        headers :  {
+                            'Accept-Encoding' : 'gzip, deflate',
+                            'Content-Type' : 'image/jpeg',
+                            'Connection' : 'keep-alive',
+                            'Cache-Control' : 'no-cache'
                         },
-                        body: data
-                        
+                        body: Buffer.concat(data)
                     })
-                    .then( (result : express.Response) =>{
-                        console.log(result.statusCode)
+                    .then( (result : object[]) =>{
+                        console.log(result[0].)
                         res.status(200).end()
                     })
                     .catch( err => {
                         console.error(err)
-                        res.status(400).end()
+                        res.status(err.statusCode).end()
                     })
                     
                 })
@@ -118,6 +121,12 @@ const reply = (req : express.Request) => {
     return Client.replyMessage(req.body.events[0].replyToken,{type : "text", text : JSON.stringify(req.body)});
 }
 
+
+const imageHandler = async (req : express.Request) => {
+    let event : line.WebhookEvent = req.body.events[0]
+
+    Client.getMessageContent(event.message.id)
+}
 
 export {
     app
