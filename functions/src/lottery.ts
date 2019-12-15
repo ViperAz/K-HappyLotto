@@ -1,10 +1,10 @@
 import *  as express from 'express'
-import * as fbAdmin from 'firebase-admin'
-import * as functions from 'firebase-functions'
+// import * as fbAdmin from 'firebase-admin'
+// import * as functions from 'firebase-functions'
 
 
 
-fbAdmin.initializeApp(functions.config().firebase)
+// fbAdmin.initializeApp(functions.config().firebase)
 
 // let fsDb = fbAdmin.firestore()
 

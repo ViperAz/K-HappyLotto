@@ -3,20 +3,40 @@ import  * as express from 'express'
 import * as requestPromise from "request-promise"
 import { Readable } from 'stream';
 import cors = require('cors');
+// import * as admin from 'firebase-admin';
+
+// const fireStore : FirebaseFirestore.Firestore = admin.firestore()
 
 
 const Client = new line.Client({channelAccessToken : '8YPInaLsR0Ihyte/TVBrOg7NPmBE8VTghj4ctBqZ4D7ovuBcFAjYpIRhbbWisppI2juj7MJSAiAkJaIDs+0QvwXFTwkHkjFbrxgPaoFgVK4NY9t5tD3zwvnkbcCk62DmWDwT68EOoyiEIVV9RL31DQdB04t89/1O/w1cDnyilFU='})
 
+
+let requestGrab : line.TemplateMessage = {
+    "type": "template",
+    "altText": "this is a buttons template",
+    "template": {
+      "type": "buttons",
+      "actions": [
+        {
+          "type": "message",
+          "label": "ขึ้นเงิน",
+          "text": "ขึ้นเงิน"
+        }
+      ],
+      "text": "Lotto winner"
+    }
+  }
 const app = express()
 app.use(cors({origin : true}))
 app.post('*', (req : express.Request,res : express.Response) =>{
-    let event : line.WebhookEvent = req.body.events[0]
+    let event : line.MessageEvent = req.body.events[0]
+    let replyToken : string = event.replyToken
     if (event.type === "message" ) {
         if (event.message.type === "text"){
             /**
             * Text section
             *   Send to dialogflow to handle text request 
-            *   (WIP)
+            *   
             */
             sendToDialogflow(req)
             .then( () => {
@@ -31,9 +51,12 @@ app.post('*', (req : express.Request,res : express.Response) =>{
             /**
              * Image receive section
              * 
-             * 1. Validate images that recieved are lottery via API ... (WIP)
+             * 1. Validate images that recieved are lottery via API ... 
              * 2. if they are lotteries receive number and date
              * 3. upload both images and raw number and date to database 
+             * 4. validate lotto if result exist
+             * 5. send msg the result
+             * Dont do promise Hell like me lmao
              */
 
             getImageContent(event.message.id)
@@ -45,8 +68,6 @@ app.post('*', (req : express.Request,res : express.Response) =>{
                 })
 
                 stream.on("end",()=>{
-                    // console.log(data)
-                    console.log(data)
                     requestPromise.post({
                         uri: "https://us-central1-k-happy-lotto.cloudfunctions.net/scanLotto",
                         headers :  {
@@ -57,9 +78,39 @@ app.post('*', (req : express.Request,res : express.Response) =>{
                         },
                         body: Buffer.concat(data)
                     })
-                    .then( (result : object[]) =>{
-                        console.log(result[0].)
-                        res.status(200).end()
+                    .then( (result : string) =>{
+
+
+                        let rst = JSON.parse(result)
+                        let lotto = {
+                            number : rst[0]["number"],
+                            round : rst[0]["round"],
+                            set : rst[0]["set"],
+                            lottoDate : rst[0]["lottoDate"]
+                        }
+
+                        requestPromise.post({
+                            uri : 'https://us-central1-k-happy-lotto.cloudfunctions.net/checkPrize' ,
+                            headers :  {
+                                'Content-Type' : 'application/json',
+                            },
+                            body : {
+                                "number": lotto.number,
+                                "round": lotto.round
+                            },
+                            json : true
+                        })
+                        .then( (resultLotto  : string[]) => {
+                            Client.replyMessage(replyToken,requestGrab)
+                            .then( () =>{
+                                res.status(200).end()
+                            })
+                            .catch (err =>{
+                                res.send(err).status(500).end()
+                            })
+                            console.log(resultLotto[0])
+                            res.status(200).end()
+                        })          
                     })
                     .catch( err => {
                         console.error(err)
@@ -121,12 +172,6 @@ const reply = (req : express.Request) => {
     return Client.replyMessage(req.body.events[0].replyToken,{type : "text", text : JSON.stringify(req.body)});
 }
 
-
-const imageHandler = async (req : express.Request) => {
-    let event : line.WebhookEvent = req.body.events[0]
-
-    Client.getMessageContent(event.message.id)
-}
 
 export {
     app
