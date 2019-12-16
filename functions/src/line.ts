@@ -3,6 +3,8 @@ import  * as express from 'express'
 import * as requestPromise from "request-promise"
 import { Readable } from 'stream';
 import cors = require('cors');
+
+import {lottoWinner} from './card/lottoWinner'
 // import * as admin from 'firebase-admin';
 
 // const fireStore : FirebaseFirestore.Firestore = admin.firestore()
@@ -10,25 +12,10 @@ import cors = require('cors');
 
 const Client = new line.Client({channelAccessToken : '8YPInaLsR0Ihyte/TVBrOg7NPmBE8VTghj4ctBqZ4D7ovuBcFAjYpIRhbbWisppI2juj7MJSAiAkJaIDs+0QvwXFTwkHkjFbrxgPaoFgVK4NY9t5tD3zwvnkbcCk62DmWDwT68EOoyiEIVV9RL31DQdB04t89/1O/w1cDnyilFU='})
 
-
-let requestGrab : line.TemplateMessage = {
-    "type": "template",
-    "altText": "this is a buttons template",
-    "template": {
-      "type": "buttons",
-      "actions": [
-        {
-          "type": "message",
-          "label": "ขึ้นเงิน",
-          "text": "ขึ้นเงิน"
-        }
-      ],
-      "text": "Lotto winner"
-    }
-  }
 const app = express()
 app.use(cors({origin : true}))
 app.post('*', (req : express.Request,res : express.Response) =>{
+    
     let event : line.MessageEvent = req.body.events[0]
     let replyToken : string = event.replyToken
     if (event.type === "message" ) {
@@ -101,15 +88,21 @@ app.post('*', (req : express.Request,res : express.Response) =>{
                             json : true
                         })
                         .then( (resultLotto  : string[]) => {
-                            Client.replyMessage(replyToken,requestGrab)
+                            // lottoNumber = lotto.number
+                            // lottoPrize = resultLotto[0]
+                            // lottoeryDate = lotto.lottoDate
+                            let flexJson : any = new lottoWinner(lotto.number,lotto.round,resultLotto[0],lotto.lottoDate).getLottoJson()
+                            console.log(flexJson)
+                            Client.replyMessage(replyToken,flexJson)
                             .then( () =>{
+                                console.log("Hello ?")
                                 res.status(200).end()
                             })
                             .catch (err =>{
                                 res.send(err).status(500).end()
                             })
-                            console.log(resultLotto[0])
-                            res.status(200).end()
+                            // console.log(resultLotto[0])
+                            // res.status(200).end()
                         })          
                     })
                     .catch( err => {
@@ -128,11 +121,12 @@ app.post('*', (req : express.Request,res : express.Response) =>{
             // Client.replyMessage(req.body.events[0].replyToken,{type : "text", text : imageBinary})
         }
 
+
         else {
             /**
              * Unhandle request type of message 
              */
-            
+            console.log (JSON.stringify(req.body))
             reply(req)
             .then( () => {
                 res.status(200).end()
@@ -143,6 +137,59 @@ app.post('*', (req : express.Request,res : express.Response) =>{
         }
 
       }
+    else if (event.type === "postback"){
+        
+        let pbEvent  : line.PostbackEvent = req.body.events[0]
+        let amount = "0"
+        if (pbEvent.postback.data === "1"){
+            amount = "100"
+        }
+        if(pbEvent.postback.data === "รางวัลที่ 1"){
+            amount = "5970000"
+        } 
+        if (pbEvent.postback.data === "รางวัลที่ 2") {
+            amount = "200000"
+        } 
+        if (pbEvent.postback.data === "รางวัลที่ 3") {
+            amount = "80000"
+        } 
+        if (pbEvent.postback.data === "รางวัลที่ 4") {
+            amount = "40000"
+        } 
+        if (pbEvent.postback.data === "รางวัลที่ 5") {
+            amount = "20000"
+        } 
+        if (pbEvent.postback.data === "รางวัลเลขหน้า 3 ตัว") {
+            amount = "4000"
+        } 
+        if (pbEvent.postback.data === "รางวัลเลขท้าย 3 ตัว") {
+            amount = "4000"
+        } 
+        if (pbEvent.postback.data === "รางวัลเลขท้าย 2 ตัว") {
+            amount = "2000"
+        }
+        console.log(amount)
+
+        requestPromise.post({
+            uri : 'https://us-central1-k-happy-lotto.cloudfunctions.net/transfer' ,
+            headers :  {
+                'Content-Type' : 'application/json',
+            },
+            body : {
+                "amount" : amount
+            },
+            json : true
+        })
+        .then (result => {
+            console.log("yay")
+            res.status(200).end()
+        })
+        .catch (err  =>{
+            console.log(err)
+            res.status(500).end()
+        })
+
+    }
 
     //   res.status(404).end()
 
