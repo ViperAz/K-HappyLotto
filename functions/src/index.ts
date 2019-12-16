@@ -18,20 +18,25 @@ const fullfillment = functions.https.onRequest(fullfill)
 const transHistory = functions.firestore.document('/Users/{userId}/history/{transactionId}').onCreate( (snapshot: FirebaseFirestore.DocumentSnapshot, context: functions.EventContext) =>{
 
 
+    const userId = context.params.userId
+    let data : any = snapshot.data()
+
+    console.log(userId)
+    console.log(data)
+    console.log(context)
     let msg : any = {
         "type": "text",
-        "text": `ได้รับเงิน 5,970,000.00 บาท จาก K-HappyLotto ใช้ได้ 6,115,112.00 บาท`
+        "text": `ได้รับเงิน ${data.money} บาท จาก K-HappyLotto`
       }
 
-    Client.pushMessage('U2d493044794b863dee491bfc35596921',msg)
+    Client.pushMessage(userId,msg)
     .then( () =>{
         console.log("Done")
     })
     .catch(err => {
         console.error(err)
     })
-    console.log(snapshot.data)
-    console.log(context)
+
 })
 
 export {

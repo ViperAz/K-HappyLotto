@@ -29,9 +29,14 @@ export class lottoWinner {
                       "contents": [
                         {
                           "type": "image",
-                          "url": "https://firebasestorage.googleapis.com/v0/b/k-happy-lotto.appspot.com/o/star.png?alt=media&token=521b478f-22a7-497f-b2b5-833b1c1b418c",
+                          "url": "https://firebasestorage.googleapis.com/v0/b/k-happy-lotto.appspot.com/o/star.png?alt=media&token=d1299ec4-0e30-4ef5-b1b4-5a2fe4dc766d",
                           "flex": 2,
-                          "size": "full"
+                          "size": "full",
+                          "action": {
+                            "type": "postback",
+                            "label": `${this.lottoPrize}`,
+                            "data": `${this.lottoPrize}`
+                          }
                         },
                         {
                           "type": "box",

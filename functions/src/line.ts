@@ -4,7 +4,7 @@ import * as requestPromise from "request-promise"
 import { Readable } from 'stream';
 import cors = require('cors');
 
-import {lottoWinner} from './card/lottoWinner'
+import {lottoWinner , lottoLoser,textMessage} from './card'
 // import * as admin from 'firebase-admin';
 
 // const fireStore : FirebaseFirestore.Firestore = admin.firestore()
@@ -17,7 +17,7 @@ app.use(cors({origin : true}))
 app.post('*', (req : express.Request,res : express.Response) =>{
     
     let event : line.MessageEvent = req.body.events[0]
-    let replyToken : string = event.replyToken
+    // let replyToken : string = event.replyToken
     if (event.type === "message" ) {
         if (event.message.type === "text"){
             /**
@@ -45,80 +45,14 @@ app.post('*', (req : express.Request,res : express.Response) =>{
              * 5. send msg the result
              * Dont do promise Hell like me lmao
              */
-
-            getImageContent(event.message.id)
-            .then((stream : Readable) =>{
-                let data: Buffer[] = []
-                stream.on("data",(chunk : Buffer)=>{
-                    // console.log(chunk)
-                    data.push(chunk)
-                })
-
-                stream.on("end",()=>{
-                    requestPromise.post({
-                        uri: "https://us-central1-k-happy-lotto.cloudfunctions.net/scanLotto",
-                        headers :  {
-                            'Accept-Encoding' : 'gzip, deflate',
-                            'Content-Type' : 'image/jpeg',
-                            'Connection' : 'keep-alive',
-                            'Cache-Control' : 'no-cache'
-                        },
-                        body: Buffer.concat(data)
-                    })
-                    .then( (result : string) =>{
-
-
-                        let rst = JSON.parse(result)
-                        let lotto = {
-                            number : rst[0]["number"],
-                            round : rst[0]["round"],
-                            set : rst[0]["set"],
-                            lottoDate : rst[0]["lottoDate"]
-                        }
-
-                        requestPromise.post({
-                            uri : 'https://us-central1-k-happy-lotto.cloudfunctions.net/checkPrize' ,
-                            headers :  {
-                                'Content-Type' : 'application/json',
-                            },
-                            body : {
-                                "number": lotto.number,
-                                "round": lotto.round
-                            },
-                            json : true
-                        })
-                        .then( (resultLotto  : string[]) => {
-                            // lottoNumber = lotto.number
-                            // lottoPrize = resultLotto[0]
-                            // lottoeryDate = lotto.lottoDate
-                            let flexJson : any = new lottoWinner(lotto.number,lotto.round,resultLotto[0],lotto.lottoDate).getLottoJson()
-                            console.log(flexJson)
-                            Client.replyMessage(replyToken,flexJson)
-                            .then( () =>{
-                                console.log("Hello ?")
-                                res.status(200).end()
-                            })
-                            .catch (err =>{
-                                res.send(err).status(500).end()
-                            })
-                            // console.log(resultLotto[0])
-                            // res.status(200).end()
-                        })          
-                    })
-                    .catch( err => {
-                        console.error(err)
-                        res.status(err.statusCode).end()
-                    })
-                    
-                })
-
-                
+            imageProcess(req)
+            .then ( () => {
+                res.status(200).end()
             })
             .catch( err =>{
-                console.error(err)
-                res.send(err).status(500).end()
+                res.status(500).send(err).end()
             })
-            // Client.replyMessage(req.body.events[0].replyToken,{type : "text", text : imageBinary})
+        
         }
 
 
@@ -145,28 +79,28 @@ app.post('*', (req : express.Request,res : express.Response) =>{
             amount = "100"
         }
         if(pbEvent.postback.data === "รางวัลที่ 1"){
-            amount = "5970000"
+            amount = "5970"
         } 
         if (pbEvent.postback.data === "รางวัลที่ 2") {
-            amount = "200000"
+            amount = "2000"
         } 
         if (pbEvent.postback.data === "รางวัลที่ 3") {
-            amount = "80000"
+            amount = "800"
         } 
         if (pbEvent.postback.data === "รางวัลที่ 4") {
-            amount = "40000"
+            amount = "400"
         } 
         if (pbEvent.postback.data === "รางวัลที่ 5") {
-            amount = "20000"
+            amount = "20"
         } 
         if (pbEvent.postback.data === "รางวัลเลขหน้า 3 ตัว") {
-            amount = "4000"
+            amount = "40"
         } 
         if (pbEvent.postback.data === "รางวัลเลขท้าย 3 ตัว") {
-            amount = "4000"
+            amount = "40"
         } 
         if (pbEvent.postback.data === "รางวัลเลขท้าย 2 ตัว") {
-            amount = "2000"
+            amount = "20"
         }
         console.log(amount)
 
@@ -200,6 +134,97 @@ app.post('*', (req : express.Request,res : express.Response) =>{
 
 
 
+const imageProcess = async (req : express.Request) =>{
+    let event : line.MessageEvent = req.body.events[0]
+    let replyToken : string = event.replyToken
+    console.log("IMAGE EVENT")
+
+    try {
+        let stream : Readable = await getImageContent(event.message.id)
+        let data: Buffer[] = []
+        stream.on("data",(chunk : Buffer)=>{
+            // console.log(chunk)
+            data.push(chunk)
+        })
+
+        stream.on("end", ()=> {
+            
+            lottoCheck(data,replyToken)
+            .then(()=>{
+                console.log("DONE lotto")
+            })
+            .catch( err => {
+                throw new Error(err)
+            })
+
+        })
+    }catch (err){
+        await replyMessage(replyToken,err)
+    }
+}
+
+const lottoCheck = async (data : Buffer[],replyToken : string) => {
+    try{
+        let result : string = await requestPromise.post({
+            uri: "https://us-central1-k-happy-lotto.cloudfunctions.net/scanLotto",
+            headers :  {
+                'Accept-Encoding' : 'gzip, deflate',
+                'Content-Type' : 'image/jpeg',
+                'Connection' : 'keep-alive',
+                'Cache-Control' : 'no-cache'
+            },
+            body: Buffer.concat(data)
+        })
+    
+        let rst : any[] = JSON.parse(result)
+    
+        if (rst.length >0){
+            let lotto = {
+                number : rst[0]["number"],
+                round : rst[0]["round"],
+                set : rst[0]["set"],
+                lottoDate : rst[0]["lottoDate"]
+            }
+    
+            console.log(rst)
+            let resultLotto  : string[] = await requestPromise.post({
+                uri : 'https://us-central1-k-happy-lotto.cloudfunctions.net/checkPrize' ,
+                headers :  {
+                    'Content-Type' : 'application/json',
+                },
+                body : {
+                    "number": lotto.number,
+                    "round": lotto.round
+                },
+                json : true
+            })
+            console.log(resultLotto)
+            let flexJson :any
+    
+            if (resultLotto.length >0){
+                flexJson =  new lottoWinner(lotto.number,lotto.round,resultLotto[0],lotto.lottoDate).getLottoJson()
+    
+            }
+            else {
+                flexJson =  new lottoLoser(lotto.number,lotto.round,lotto.lottoDate).getLottoJson()
+            }
+    
+            await Client.replyMessage(replyToken,flexJson)
+        }
+        else {
+            await replyMessage(replyToken,"เราไม่เจอเลขหวยของคุณ กรุณาลองใหม่อีกครั้ง")
+        }
+    }
+    catch (err){
+        throw new Error(err)
+    }
+
+}
+
+const replyMessage = (replyMsg : string ,replyToken : string) => {
+    let msg  : any= new textMessage(replyMsg).getJson()
+    return Client.replyMessage(replyToken,msg)
+}
 
 const getImageContent = (contentId : string) => {
     return Client.getMessageContent(contentId)
